@@ -17,26 +17,37 @@ a{color:white;text-decoration:none}
 .hero p{color:#b8b0c9;margin:20px auto;max-width:550px;line-height:1.7}
 .btn{display:inline-block;background:#8b5cf6;color:white;padding:13px 24px;border-radius:10px;margin:8px;border:0;cursor:pointer}
 .btn:hover{background:#7041d4}
+.btn:disabled{opacity:.5;cursor:not-allowed}
 section{padding:45px 7%}
 h2{text-align:center;margin-bottom:30px}
 .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
 .card{background:#151020;border:1px solid #35254e;border-radius:15px;padding:22px}
 .card h3{color:#bd9aff;margin-bottom:12px}
-.card p{color:#bbb2ca;margin:9px 0}
+.card p{color:#bbb2ca;margin:9px 0;overflow-wrap:anywhere}
 .price{font-size:25px;color:white!important}
 footer{text-align:center;padding:35px;color:#aaa}
 #adminPage{display:none;max-width:1100px;margin:40px auto;padding:20px}
 .panel{background:#151020;border:1px solid #35254e;border-radius:15px;padding:25px;margin-bottom:20px}
-input{width:100%;padding:14px;margin:10px 0;background:#080611;border:1px solid #493568;border-radius:8px;color:white}
-.message{text-align:center;margin:12px 0;color:#ff7777}
+input,select{width:100%;padding:14px;margin:10px 0;background:#080611;border:1px solid #493568;border-radius:8px;color:white}
+select option{background:#151020}
+.message{text-align:center;margin:12px 0;color:#ff7777;overflow-wrap:anywhere}
 #dashboard{display:none}
-#priceEditor{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
 .edit-card{background:#080611;border:1px solid #493568;border-radius:12px;padding:17px}
 .edit-card h3{color:#bd9aff;margin-bottom:10px}
 .edit-card label{color:#bbb;font-size:13px}
 .edit-card button{width:100%;margin:5px 0}
-.status{text-align:center;color:#b99aff;margin:15px}
+.status{text-align:center;color:#b99aff;margin:15px;overflow-wrap:anywhere}
 .small{font-size:13px;color:#aaa}
+#orderPanel{display:none;max-width:600px;margin:20px auto}
+.order-card{background:#151020;border:1px solid #493568;border-radius:14px;padding:22px}
+.order-card label{display:block;color:#c8b6e8;margin-top:12px}
+.order-item{background:#080611;border:1px solid #493568;border-radius:10px;padding:17px;margin:12px 0;overflow-wrap:anywhere}
+.order-actions{display:flex;gap:8px;flex-wrap:wrap}
+.order-actions button{flex:1}
+.pending{color:#fbbf24}
+.approved{color:#4ade80}
+.rejected{color:#f87171}
+.hidden{display:none}
 </style>
 </head>
 <body>
@@ -79,6 +90,41 @@ input{width:100%;padding:14px;margin:10px 0;background:#080611;border:1px solid 
     </div>
   </section>
 
+  <section id="orderPanel">
+    <div class="order-card">
+      <h2>✦ Complete Your Order</h2>
+      <p id="selectedPlan" class="status"></p>
+
+      <form id="orderForm">
+        <label>Discord User ID</label>
+        <input id="discordId" placeholder="Enter your Discord User ID"
+          inputmode="numeric" pattern="[0-9]{17,20}" minlength="17"
+          maxlength="20" required>
+
+        <label>Payment Method</label>
+        <select id="paymentMethod" required>
+          <option value="">Select Payment Method</option>
+          <option value="bKash">bKash</option>
+          <option value="Nagad">Nagad</option>
+          <option value="LTC">LTC</option>
+          <option value="Bybit">Bybit</option>
+          <option value="Binance">Binance</option>
+        </select>
+
+        <label>Transaction ID</label>
+        <input id="transactionId" placeholder="Enter your Transaction ID"
+          maxlength="100" required>
+
+        <p class="small">Submit করার আগে পেমেন্ট সম্পন্ন করে Transaction ID দিন। পেমেন্ট গ্রহণের বিস্তারিত জানতে Support Server-এ যোগাযোগ করুন।</p>
+
+        <button class="btn" id="submitOrderButton" type="submit">Submit Order</button>
+        <button class="btn" type="button" onclick="closeOrder()">Cancel</button>
+      </form>
+
+      <p class="message" id="orderMessage"></p>
+    </div>
+  </section>
+
   <section style="text-align:center">
     <h2>Need Help?</h2>
     <a class="btn" href="#">Support Server</a>
@@ -109,6 +155,13 @@ input{width:100%;padding:14px;margin:10px 0;background:#080611;border:1px solid 
     </div>
 
     <div class="panel">
+      <h2>Customer Orders</h2>
+      <button class="btn" onclick="loadOrders()">Refresh Orders</button>
+      <p class="status" id="ordersStatus"></p>
+      <div id="ordersList"></div>
+    </div>
+
+    <div class="panel">
       <h2>Server Premium Prices</h2>
       <div id="serverEditor" class="plans"></div>
     </div>
@@ -129,19 +182,17 @@ const loginBox=document.getElementById("loginBox");
 const dashboard=document.getElementById("dashboard");
 
 let allPlans=[];
+let selectedPlanId=null;
 
 async function loadPlans(){
   try{
     const response=await fetch("/api/plans");
     if(!response.ok) throw new Error("Could not load plans");
-
     allPlans=await response.json();
     renderPublicPlans();
   }catch(error){
-    document.getElementById("serverPlans").innerHTML=
-      '<p class="status">Could not load plans. Please refresh.</p>';
-    document.getElementById("userPlans").innerHTML=
-      '<p class="status">Could not load plans. Please refresh.</p>';
+    document.getElementById("serverPlans").textContent="Could not load plans. Please refresh.";
+    document.getElementById("userPlans").textContent="Could not load plans. Please refresh.";
   }
 }
 
@@ -155,7 +206,7 @@ function renderPublicPlans(){
         <h3>${p.plan_type} - ${p.months} Month${p.months===1?"":"s"}</h3>
         <p class="price">৳${p.price_bdt}</p>
         <p>Premium subscription</p>
-        <button class="btn" onclick="alert('Order system is not connected yet.')">Order Now</button>
+        <button class="btn" onclick="openOrder('${p.id}')">Order Now</button>
       </div>
     `).join("");
   }
@@ -163,6 +214,83 @@ function renderPublicPlans(){
   document.getElementById("serverPlans").innerHTML=makeCards(server);
   document.getElementById("userPlans").innerHTML=makeCards(users);
 }
+
+function openOrder(id){
+  const plan=allPlans.find(p=>p.id===id);
+  if(!plan) return;
+
+  selectedPlanId=id;
+  document.getElementById("selectedPlan").textContent=
+    plan.plan_type+" - "+plan.months+" Month | ৳"+plan.price_bdt;
+
+  document.getElementById("orderMessage").textContent="";
+  document.getElementById("orderForm").reset();
+  document.getElementById("orderPanel").style.display="block";
+  document.getElementById("orderPanel").scrollIntoView({behavior:"smooth"});
+}
+
+function closeOrder(){
+  document.getElementById("orderPanel").style.display="none";
+  selectedPlanId=null;
+}
+
+document.getElementById("orderForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+
+  const button=document.getElementById("submitOrderButton");
+  const message=document.getElementById("orderMessage");
+
+  const discord_user_id=document.getElementById("discordId").value.trim();
+  const payment_method=document.getElementById("paymentMethod").value;
+  const transaction_id=document.getElementById("transactionId").value.trim();
+
+  if(!selectedPlanId){
+    message.textContent="Please select a plan first.";
+    return;
+  }
+
+  if(!/^\d{17,20}$/.test(discord_user_id)){
+    message.textContent="Please enter a valid Discord User ID.";
+    return;
+  }
+
+  if(!payment_method || !transaction_id){
+    message.textContent="Please complete all fields.";
+    return;
+  }
+
+  button.disabled=true;
+  button.textContent="Submitting...";
+  message.textContent="";
+
+  try{
+    const response=await fetch("/api/orders",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        plan_id:selectedPlanId,
+        discord_user_id,
+        payment_method,
+        transaction_id
+      })
+    });
+
+    const data=await response.json();
+
+    if(!response.ok) throw new Error(data.error||"Order submission failed");
+
+    message.style.color="#4ade80";
+    message.textContent="Order submitted successfully! Your order is pending admin review.";
+    document.getElementById("orderForm").reset();
+    selectedPlanId=null;
+  }catch(error){
+    message.style.color="#ff7777";
+    message.textContent=error.message;
+  }finally{
+    button.disabled=false;
+    button.textContent="Submit Order";
+  }
+});
 
 function openAdmin(){
   mainPage.style.display="none";
@@ -182,6 +310,7 @@ async function checkLogin(){
       loginBox.style.display="none";
       dashboard.style.display="block";
       await loadAdminPlans();
+      await loadOrders();
     }else{
       loginBox.style.display="block";
       dashboard.style.display="none";
@@ -248,21 +377,109 @@ async function savePrice(id){
     });
 
     const data=await response.json();
-
-    if(!response.ok){
-      throw new Error(data.error||"Could not save price");
-    }
+    if(!response.ok) throw new Error(data.error||"Could not save price");
 
     const index=allPlans.findIndex(p=>p.id===id);
-    if(index!==-1){
-      allPlans[index].price_bdt=price;
-    }
+    if(index!==-1) allPlans[index].price_bdt=price;
 
     renderPublicPlans();
     renderAdminPlans();
     status.textContent="Price saved successfully! ৳"+price;
   }catch(error){
     status.textContent=error.message;
+  }
+}
+
+function addOrderText(parent,label,value){
+  const p=document.createElement("p");
+  p.textContent=label+": "+(value??"");
+  parent.appendChild(p);
+}
+
+async function loadOrders(){
+  const status=document.getElementById("ordersStatus");
+  const list=document.getElementById("ordersList");
+
+  status.textContent="Loading orders...";
+  list.replaceChildren();
+
+  try{
+    const response=await fetch("/api/admin/orders");
+    if(!response.ok){
+      if(response.status===401) throw new Error("Please login again.");
+      throw new Error("Could not load orders.");
+    }
+
+    const orders=await response.json();
+    status.textContent="Total Orders: "+orders.length;
+
+    if(!orders.length){
+      list.textContent="No orders yet.";
+      return;
+    }
+
+    orders.forEach(order=>{
+      const item=document.createElement("div");
+      item.className="order-item";
+
+      const heading=document.createElement("h3");
+      heading.textContent="Order #"+order.id;
+      item.appendChild(heading);
+
+      addOrderText(item,"Plan",order.plan_type+" - "+order.months+" Month");
+      addOrderText(item,"Price","৳"+order.price_bdt);
+      addOrderText(item,"Discord User ID",order.discord_user_id);
+      addOrderText(item,"Payment",order.payment_method);
+      addOrderText(item,"Transaction ID",order.transaction_id);
+      addOrderText(item,"Date",order.created_at ? new Date(order.created_at).toLocaleString() : "Unknown");
+
+      const state=document.createElement("p");
+      state.className=order.status==="approved"?"approved":order.status==="rejected"?"rejected":"pending";
+      state.textContent="Status: "+order.status;
+      item.appendChild(state);
+
+      if(order.status==="pending"){
+        const actions=document.createElement("div");
+        actions.className="order-actions";
+
+        const approve=document.createElement("button");
+        approve.className="btn";
+        approve.textContent="Approve";
+        approve.onclick=()=>updateOrder(order.id,"approved");
+
+        const reject=document.createElement("button");
+        reject.className="btn";
+        reject.textContent="Reject";
+        reject.onclick=()=>updateOrder(order.id,"rejected");
+
+        actions.append(approve,reject);
+        item.appendChild(actions);
+      }
+
+      list.appendChild(item);
+    });
+
+  }catch(error){
+    status.textContent=error.message;
+  }
+}
+
+async function updateOrder(id,status){
+  if(!confirm("Are you sure you want to "+status+" this order?")) return;
+
+  try{
+    const response=await fetch("/api/admin/orders/"+encodeURIComponent(id),{
+      method:"PATCH",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({status})
+    });
+
+    const data=await response.json();
+    if(!response.ok) throw new Error(data.error||"Could not update order");
+
+    await loadOrders();
+  }catch(error){
+    alert(error.message);
   }
 }
 
@@ -294,6 +511,7 @@ document.getElementById("loginForm").addEventListener("submit",async e=>{
       dashboard.style.display="block";
       message.textContent="";
       await loadAdminPlans();
+      await loadOrders();
     }else{
       message.textContent=data.error||"Login failed";
     }
