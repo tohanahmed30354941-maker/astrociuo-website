@@ -2,62 +2,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Astrociuos | Premium Discord Bot</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: #080611;
-      color: white;
-      font-family: Arial, sans-serif;
-    }
-    header {
-      padding: 22px 7%;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #29203e;
-    }
-    .logo { color: #a879ff; font-size: 26px; font-weight: bold; }
-    a { color: white; text-decoration: none; }
-    .hero { text-align: center; padding: 90px 20px 65px; }
-    .hero h1 { font-size: clamp(38px, 8vw, 65px); }
-    .purple { color: #a879ff; }
-    .hero p { color: #b8b0c9; margin: 20px auto; max-width: 550px; line-height: 1.7; }
-    .btn {
-      display: inline-block;
-      background: #8b5cf6;
-      color: white;
-      padding: 13px 24px;
-      border-radius: 10px;
-      margin: 10px;
-    }
-    section { padding: 45px 7%; }
-    h2 { text-align: center; margin-bottom: 30px; }
-    .plans {
-      display: grid;
-      grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
-      gap: 18px;
-    }
-    .card {
-      background: #151020;
-      border: 1px solid #35254e;
-      border-radius: 15px;
-      padding: 22px;
-    }
-    .card h3 { color: #bd9aff; margin-bottom: 12px; }
-    .card p { color: #bbb2ca; margin: 9px 0; }
-    .price { font-size: 25px; color: white !important; }
-    footer { text-align: center; padding: 35px; color: #aaa; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Astrociuos | Premium Discord Bot</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#080611;color:white;font-family:Arial,sans-serif}
+header{padding:22px 7%;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #29203e}
+.logo{color:#a879ff;font-size:26px;font-weight:bold}
+a{color:white;text-decoration:none}
+.hero{text-align:center;padding:90px 20px 65px}
+.hero h1{font-size:clamp(38px,8vw,65px)}
+.purple{color:#a879ff}
+.hero p{color:#b8b0c9;margin:20px auto;max-width:550px;line-height:1.7}
+.btn{display:inline-block;background:#8b5cf6;color:white;padding:13px 24px;border-radius:10px;margin:10px;border:0;cursor:pointer}
+section{padding:45px 7%}
+h2{text-align:center;margin-bottom:30px}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+.card{background:#151020;border:1px solid #35254e;border-radius:15px;padding:22px}
+.card h3{color:#bd9aff;margin-bottom:12px}
+.card p{color:#bbb2ca;margin:9px 0}
+.price{font-size:25px;color:white!important}
+footer{text-align:center;padding:35px;color:#aaa}
+#adminPage{display:none;max-width:500px;margin:65px auto;padding:25px}
+.panel{background:#151020;border:1px solid #35254e;border-radius:15px;padding:25px}
+input{width:100%;padding:14px;margin:10px 0;background:#080611;border:1px solid #493568;border-radius:8px;color:white}
+.message{text-align:center;margin:12px 0;color:#ff7777}
+#dashboard{display:none;text-align:center}
+</style>
 </head>
 <body>
-  <header>
-    <div class="logo">✦ Astrociuos</div>
-    <a href="#plans">Premium Plans</a>
-  </header>
 
+<header>
+  <div class="logo">✦ Astrociuos</div>
+  <nav>
+    <a href="#plans">Premium Plans</a>
+    <a href="#admin" class="btn">Admin</a>
+  </nav>
+</header>
+
+<main id="mainPage">
   <div class="hero">
     <h1>Upgrade Your <span class="purple">Discord</span></h1>
     <p>Unlock premium features and take your Discord server to the next level with Astrociuos.</p>
@@ -87,26 +71,120 @@
     <a class="btn" href="#">Support Server</a>
     <a class="btn" href="#">Invite Bot</a>
   </section>
+</main>
 
-  <footer>© 2026 Astrociuos. All rights reserved.</footer>
+<section id="adminPage">
+  <div class="panel" id="loginBox">
+    <h2>✦ Admin Login</h2>
+    <form id="loginForm">
+      <input id="username" placeholder="Admin Username" required autocomplete="username">
+      <input id="password" type="password" placeholder="Admin Password" required autocomplete="current-password">
+      <button class="btn" type="submit">Login</button>
+    </form>
+    <p class="message" id="loginMessage"></p>
+  </div>
 
-  <script>
-    const prices = [100,180,250,320,390,460,530,600];
+  <div class="panel" id="dashboard">
+    <h2>Admin Dashboard</h2>
+    <p>Welcome to Astrociuos Admin Panel!</p>
+    <p style="margin:15px">Login successful.</p>
+    <button class="btn" id="logoutButton">Logout</button>
+  </div>
+</section>
 
-    function showPlans(element, type) {
-      document.getElementById(element).innerHTML =
-        prices.map((price, i) => `
-          <div class="card">
-            <h3>${type} - ${i + 1} Month${i ? "s" : ""}</h3>
-            <p class="price">৳${price}</p>
-            <p>Premium subscription</p>
-            <a class="btn" href="mailto:YOUR_EMAIL@example.com?subject=${type}%20${i+1}%20Month%20Order">Order Now</a>
-          </div>
-        `).join("");
+<footer>© 2026 Astrociuos. All rights reserved.</footer>
+
+<script>
+const prices=[100,180,250,320,390,460,530,600];
+
+function showPlans(element,type){
+  document.getElementById(element).innerHTML=prices.map((price,i)=>`
+    <div class="card">
+      <h3>${type} - ${i+1} Month${i?"s":""}</h3>
+      <p class="price">৳${price}</p>
+      <p>Premium subscription</p>
+      <a class="btn" href="mailto:YOUR_EMAIL@example.com?subject=${encodeURIComponent(type)}%20${i+1}%20Month%20Order">Order Now</a>
+    </div>
+  `).join("");
+}
+
+showPlans("serverPlans","Server Premium");
+showPlans("userPlans","No Prefix User");
+
+const mainPage=document.getElementById("mainPage");
+const adminPage=document.getElementById("adminPage");
+const loginBox=document.getElementById("loginBox");
+const dashboard=document.getElementById("dashboard");
+
+function openAdmin(){
+  mainPage.style.display="none";
+  adminPage.style.display="block";
+  checkLogin();
+}
+
+function showHome(){
+  adminPage.style.display="none";
+  mainPage.style.display="block";
+}
+
+async function checkLogin(){
+  try{
+    const response=await fetch("/api/admin/check");
+    if(response.ok){
+      loginBox.style.display="none";
+      dashboard.style.display="block";
+    }else{
+      loginBox.style.display="block";
+      dashboard.style.display="none";
     }
+  }catch(error){
+    document.getElementById("loginMessage").textContent="Connection error";
+  }
+}
 
-    showPlans("serverPlans", "Server Premium");
-    showPlans("userPlans", "No Prefix User");
-  </script>
+document.querySelector('a[href="#admin"]').addEventListener("click",e=>{
+  e.preventDefault();
+  openAdmin();
+});
+
+document.getElementById("loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const message=document.getElementById("loginMessage");
+  message.textContent="Logging in...";
+
+  try{
+    const response=await fetch("/api/admin/login",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        username:document.getElementById("username").value,
+        password:document.getElementById("password").value
+      })
+    });
+
+    const data=await response.json();
+
+    if(response.ok){
+      loginBox.style.display="none";
+      dashboard.style.display="block";
+      message.textContent="";
+    }else{
+      message.textContent=data.error||"Login failed";
+    }
+  }catch(error){
+    message.textContent="Server connection error";
+  }
+});
+
+document.getElementById("logoutButton").addEventListener("click",async()=>{
+  await fetch("/api/admin/logout",{method:"POST"});
+  dashboard.style.display="none";
+  loginBox.style.display="block";
+  document.getElementById("loginForm").reset();
+  document.getElementById("loginMessage").textContent="Logged out";
+});
+
+if(location.hash==="#admin")openAdmin();
+</script>
 </body>
 </html>
