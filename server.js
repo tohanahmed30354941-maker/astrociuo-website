@@ -141,7 +141,118 @@ app.put("/api/admin/plans/:id", requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Could not update plan price" });
   }
 });
+// Customer Submit Order
+app.post("/api/orders", async (req, res) => {
+  try {
+    const {
+      plan_id,
+      discord_user_id,
+      payment_method,
+      transaction_id
+    } = req.body;
 
+    if (
+      !/^((server|user)_[1-8])$/.test(plan_id || "") ||
+      !/^\d{17,20}$/.test(discord_user_id || "") ||
+      !["bKash", "Nagad", "LTC", "Bybit", "Binance"].includes(payment_method) ||
+      !transaction_id ||
+      transaction_id.length > 100
+    ) {
+      return res.status(400).json({ error: "Invalid order information" });
+    }
+
+    const planResponse = await supabaseRequest(
+      `plan_prices?id=eq.${encodeURIComponent(plan_id)}&select=id,plan_type,months,price_bdt`
+    );
+
+    if (!planResponse.ok) throw new Error(await planResponse.text());
+
+    const plans = await planResponse.json();
+
+    if (!plans.length) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+
+    const plan = plans[0];
+
+    const response = await supabaseRequest("orders", {
+      method: "POST",
+      headers: { "Prefer": "return=representation" },
+      body: JSON.stringify({
+        plan_id: plan.id,
+        plan_type: plan.plan_type,
+        months: plan.months,
+        price_bdt: plan.price_bdt,
+        discord_user_id,
+        payment_method,
+        transaction_id,
+        status: "pending"
+      })
+    });
+
+    if (!response.ok) throw new Error(await response.text());
+
+    const order = await response.json();
+    res.json({ success: true, order: order[0] });
+
+  } catch (error) {
+    console.error("Order error:", error.message);
+    res.status(500).json({ error: "Could not submit order" });
+  }
+});
+
+// Admin View Orders
+app.get("/api/admin/orders", requireAdmin, async (req, res) => {
+  try {
+    const response = await supabaseRequest(
+      "orders?select=*&order=created_at.desc"
+    );
+
+    if (!response.ok) throw new Error(await response.text());
+
+    res.json(await response.json());
+
+  } catch (error) {
+    console.error("Orders error:", error.message);
+    res.status(500).json({ error: "Could not load orders" });
+  }
+});
+
+// Admin Approve or Reject Order
+app.patch("/api/admin/orders/:id", requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { status } = req.body;
+
+    if (!Number.isInteger(id) || id < 1 ||
+        !["approved", "rejected"].includes(status)) {
+      return res.status(400).json({ error: "Invalid order update" });
+    }
+
+    const response = await supabaseRequest(
+      `orders?id=eq.${id}`,
+      {
+        method: "PATCH",
+        headers: { "Prefer": "return=representation" },
+        body: JSON.stringify({ status })
+      }
+    );
+
+    if (!response.ok) throw new Error(await response.text());
+
+    const updated = await response.json();
+
+    if (!updated.length) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    res.json({ success: true, order: updated[0] });
+
+  } catch (error) {
+    console.error("Order update error:", error.message);
+    res.status(500).json({ error: "Could not update order" });
+  }
+});
 // Health Check
 app.get("/api/health", (req, res) => {
   res.json({ status: "online" });
