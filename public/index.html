@@ -8,14 +8,15 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#080611;color:white;font-family:Arial,sans-serif}
-header{padding:22px 7%;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #29203e}
+header{padding:22px 7%;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #29203e;gap:15px;flex-wrap:wrap}
 .logo{color:#a879ff;font-size:26px;font-weight:bold}
 a{color:white;text-decoration:none}
 .hero{text-align:center;padding:90px 20px 65px}
 .hero h1{font-size:clamp(38px,8vw,65px)}
 .purple{color:#a879ff}
 .hero p{color:#b8b0c9;margin:20px auto;max-width:550px;line-height:1.7}
-.btn{display:inline-block;background:#8b5cf6;color:white;padding:13px 24px;border-radius:10px;margin:10px;border:0;cursor:pointer}
+.btn{display:inline-block;background:#8b5cf6;color:white;padding:13px 24px;border-radius:10px;margin:8px;border:0;cursor:pointer}
+.btn:hover{background:#7041d4}
 section{padding:45px 7%}
 h2{text-align:center;margin-bottom:30px}
 .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
@@ -24,11 +25,18 @@ h2{text-align:center;margin-bottom:30px}
 .card p{color:#bbb2ca;margin:9px 0}
 .price{font-size:25px;color:white!important}
 footer{text-align:center;padding:35px;color:#aaa}
-#adminPage{display:none;max-width:500px;margin:65px auto;padding:25px}
-.panel{background:#151020;border:1px solid #35254e;border-radius:15px;padding:25px}
+#adminPage{display:none;max-width:1100px;margin:40px auto;padding:20px}
+.panel{background:#151020;border:1px solid #35254e;border-radius:15px;padding:25px;margin-bottom:20px}
 input{width:100%;padding:14px;margin:10px 0;background:#080611;border:1px solid #493568;border-radius:8px;color:white}
 .message{text-align:center;margin:12px 0;color:#ff7777}
-#dashboard{display:none;text-align:center}
+#dashboard{display:none}
+#priceEditor{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
+.edit-card{background:#080611;border:1px solid #493568;border-radius:12px;padding:17px}
+.edit-card h3{color:#bd9aff;margin-bottom:10px}
+.edit-card label{color:#bbb;font-size:13px}
+.edit-card button{width:100%;margin:5px 0}
+.status{text-align:center;color:#b99aff;margin:15px}
+.small{font-size:13px;color:#aaa}
 </style>
 </head>
 <body>
@@ -50,9 +58,14 @@ input{width:100%;padding:14px;margin:10px 0;background:#080611;border:1px solid 
 
   <section id="plans">
     <h2>Server Premium</h2>
-    <div class="plans" id="serverPlans"></div>
+    <div class="plans" id="serverPlans">
+      <p class="status">Loading plans...</p>
+    </div>
+
     <h2 style="margin-top:55px">No Prefix User Premium</h2>
-    <div class="plans" id="userPlans"></div>
+    <div class="plans" id="userPlans">
+      <p class="status">Loading plans...</p>
+    </div>
   </section>
 
   <section>
@@ -82,39 +95,74 @@ input{width:100%;padding:14px;margin:10px 0;background:#080611;border:1px solid 
       <button class="btn" type="submit">Login</button>
     </form>
     <p class="message" id="loginMessage"></p>
+    <button class="btn" onclick="showHome()">Back to Website</button>
   </div>
 
-  <div class="panel" id="dashboard">
-    <h2>Admin Dashboard</h2>
-    <p>Welcome to Astrociuos Admin Panel!</p>
-    <p style="margin:15px">Login successful.</p>
-    <button class="btn" id="logoutButton">Logout</button>
+  <div id="dashboard">
+    <div class="panel">
+      <h2>✦ Astrociuos Admin Panel</h2>
+      <p style="text-align:center">Welcome to Astrociuos Admin Panel!</p>
+      <p class="small" style="text-align:center;margin:10px">Edit your 16 Premium Plan prices below.</p>
+      <p class="status" id="adminStatus"></p>
+      <button class="btn" id="logoutButton">Logout</button>
+      <button class="btn" onclick="showHome()">Website Home</button>
+    </div>
+
+    <div class="panel">
+      <h2>Server Premium Prices</h2>
+      <div id="serverEditor" class="plans"></div>
+    </div>
+
+    <div class="panel">
+      <h2>No Prefix User Prices</h2>
+      <div id="userEditor" class="plans"></div>
+    </div>
   </div>
 </section>
 
 <footer>© 2026 Astrociuos. All rights reserved.</footer>
 
 <script>
-const prices=[100,180,250,320,390,460,530,600];
-
-function showPlans(element,type){
-  document.getElementById(element).innerHTML=prices.map((price,i)=>`
-    <div class="card">
-      <h3>${type} - ${i+1} Month${i?"s":""}</h3>
-      <p class="price">৳${price}</p>
-      <p>Premium subscription</p>
-      <a class="btn" href="mailto:YOUR_EMAIL@example.com?subject=${encodeURIComponent(type)}%20${i+1}%20Month%20Order">Order Now</a>
-    </div>
-  `).join("");
-}
-
-showPlans("serverPlans","Server Premium");
-showPlans("userPlans","No Prefix User");
-
 const mainPage=document.getElementById("mainPage");
 const adminPage=document.getElementById("adminPage");
 const loginBox=document.getElementById("loginBox");
 const dashboard=document.getElementById("dashboard");
+
+let allPlans=[];
+
+async function loadPlans(){
+  try{
+    const response=await fetch("/api/plans");
+    if(!response.ok) throw new Error("Could not load plans");
+
+    allPlans=await response.json();
+    renderPublicPlans();
+  }catch(error){
+    document.getElementById("serverPlans").innerHTML=
+      '<p class="status">Could not load plans. Please refresh.</p>';
+    document.getElementById("userPlans").innerHTML=
+      '<p class="status">Could not load plans. Please refresh.</p>';
+  }
+}
+
+function renderPublicPlans(){
+  const server=allPlans.filter(p=>p.plan_type==="Server Premium");
+  const users=allPlans.filter(p=>p.plan_type==="No Prefix User");
+
+  function makeCards(plans){
+    return plans.map(p=>`
+      <div class="card">
+        <h3>${p.plan_type} - ${p.months} Month${p.months===1?"":"s"}</h3>
+        <p class="price">৳${p.price_bdt}</p>
+        <p>Premium subscription</p>
+        <button class="btn" onclick="alert('Order system is not connected yet.')">Order Now</button>
+      </div>
+    `).join("");
+  }
+
+  document.getElementById("serverPlans").innerHTML=makeCards(server);
+  document.getElementById("userPlans").innerHTML=makeCards(users);
+}
 
 function openAdmin(){
   mainPage.style.display="none";
@@ -133,12 +181,88 @@ async function checkLogin(){
     if(response.ok){
       loginBox.style.display="none";
       dashboard.style.display="block";
+      await loadAdminPlans();
     }else{
       loginBox.style.display="block";
       dashboard.style.display="none";
     }
   }catch(error){
     document.getElementById("loginMessage").textContent="Connection error";
+  }
+}
+
+async function loadAdminPlans(){
+  const status=document.getElementById("adminStatus");
+  status.textContent="Loading prices...";
+
+  try{
+    const response=await fetch("/api/plans");
+    if(!response.ok) throw new Error("Failed to load prices");
+
+    allPlans=await response.json();
+    renderPublicPlans();
+    renderAdminPlans();
+    status.textContent="All prices loaded successfully.";
+  }catch(error){
+    status.textContent="Could not load prices. Please refresh.";
+  }
+}
+
+function renderAdminPlans(){
+  const server=allPlans.filter(p=>p.plan_type==="Server Premium");
+  const users=allPlans.filter(p=>p.plan_type==="No Prefix User");
+
+  function makeEditor(plans){
+    return plans.map(p=>`
+      <div class="edit-card">
+        <h3>${p.plan_type} - ${p.months} Month</h3>
+        <label>Price in BDT (৳)</label>
+        <input type="number" min="0" step="1"
+          id="price-${p.id}" value="${p.price_bdt}">
+        <button class="btn" onclick="savePrice('${p.id}')">Save Price</button>
+      </div>
+    `).join("");
+  }
+
+  document.getElementById("serverEditor").innerHTML=makeEditor(server);
+  document.getElementById("userEditor").innerHTML=makeEditor(users);
+}
+
+async function savePrice(id){
+  const input=document.getElementById("price-"+id);
+  const status=document.getElementById("adminStatus");
+  const price=Number(input.value);
+
+  if(input.value.trim()==="" || !Number.isInteger(price) || price<0){
+    status.textContent="Please enter a valid price.";
+    return;
+  }
+
+  status.textContent="Saving price...";
+
+  try{
+    const response=await fetch("/api/admin/plans/"+encodeURIComponent(id),{
+      method:"PUT",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({price_bdt:price})
+    });
+
+    const data=await response.json();
+
+    if(!response.ok){
+      throw new Error(data.error||"Could not save price");
+    }
+
+    const index=allPlans.findIndex(p=>p.id===id);
+    if(index!==-1){
+      allPlans[index].price_bdt=price;
+    }
+
+    renderPublicPlans();
+    renderAdminPlans();
+    status.textContent="Price saved successfully! ৳"+price;
+  }catch(error){
+    status.textContent=error.message;
   }
 }
 
@@ -149,6 +273,7 @@ document.querySelector('a[href="#admin"]').addEventListener("click",e=>{
 
 document.getElementById("loginForm").addEventListener("submit",async e=>{
   e.preventDefault();
+
   const message=document.getElementById("loginMessage");
   message.textContent="Logging in...";
 
@@ -168,6 +293,7 @@ document.getElementById("loginForm").addEventListener("submit",async e=>{
       loginBox.style.display="none";
       dashboard.style.display="block";
       message.textContent="";
+      await loadAdminPlans();
     }else{
       message.textContent=data.error||"Login failed";
     }
@@ -185,6 +311,8 @@ document.getElementById("logoutButton").addEventListener("click",async()=>{
 });
 
 if(location.hash==="#admin")openAdmin();
+
+loadPlans();
 </script>
 </body>
 </html>
