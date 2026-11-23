@@ -528,6 +528,107 @@ document.getElementById("logoutButton").addEventListener("click",async()=>{
   document.getElementById("loginMessage").textContent="Logged out";
 });
 
+async function loadPaymentSettings(){
+  const status=document.getElementById("paymentStatus");
+  const editor=document.getElementById("paymentEditor");
+
+  if(!status || !editor) return;
+
+  status.textContent="Loading payment methods...";
+  editor.replaceChildren();
+
+  try{
+    const response=await fetch("/api/admin/payment-methods");
+
+    if(!response.ok){
+      if(response.status===401) throw new Error("Please login again.");
+      throw new Error("Could not load payment methods.");
+    }
+
+    const methods=await response.json();
+
+    if(!methods.length){
+      status.textContent="No payment methods found.";
+      return;
+    }
+
+    methods.forEach(method=>{
+      const card=document.createElement("div");
+      card.className="edit-card";
+
+      const title=document.createElement("h3");
+      title.textContent=method.name;
+      card.appendChild(title);
+
+      const label=document.createElement("label");
+      label.textContent="Number / Wallet Address";
+      card.appendChild(label);
+
+      const details=document.createElement("input");
+      details.type="text";
+      details.value=method.details||"";
+      details.placeholder="Enter number or wallet address";
+      card.appendChild(details);
+
+      const enabledLabel=document.createElement("label");
+      const enabled=document.createElement("input");
+      enabled.type="checkbox";
+      enabled.checked=method.enabled===true;
+      enabled.style.width="auto";
+
+      enabledLabel.appendChild(enabled);
+      enabledLabel.append(" Enable this payment method");
+      card.appendChild(enabledLabel);
+
+      const save=document.createElement("button");
+      save.className="btn";
+      save.textContent="Save Changes";
+
+      save.onclick=async()=>{
+        save.disabled=true;
+        save.textContent="Saving...";
+
+        try{
+          const result=await fetch(
+            "/api/admin/payment-methods/"+encodeURIComponent(method.id),
+            {
+              method:"PATCH",
+              headers:{"Content-Type":"application/json"},
+              body:JSON.stringify({
+                details:details.value.trim(),
+                enabled:enabled.checked
+              })
+            }
+          );
+
+          const data=await result.json();
+
+          if(!result.ok){
+            throw new Error(data.error||"Could not save settings");
+          }
+
+          status.textContent=method.name+" saved successfully!";
+          save.textContent="Saved ✓";
+
+        }catch(error){
+          status.textContent=error.message;
+          save.textContent="Save Changes";
+        }finally{
+          save.disabled=false;
+        }
+      };
+
+      card.appendChild(save);
+      editor.appendChild(card);
+    });
+
+    status.textContent="Payment methods loaded: "+methods.length;
+
+  }catch(error){
+    status.textContent=error.message;
+  }
+}
+
 if(location.hash==="#admin")openAdmin();
 
 loadPlans();
