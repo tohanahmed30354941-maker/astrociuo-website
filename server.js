@@ -254,10 +254,76 @@ app.patch("/api/admin/orders/:id", requireAdmin, async (req, res) => {
   }
 });
 
-// এখানে নতুন Payment Settings কোড বসবে
+ // Public: Get Enabled Payment Methods
+app.get("/api/payment-methods", async (req, res) => {
+  try {
+    const response = await supabaseRequest(
+      "payment_methods?select=id,name,details,enabled&enabled=eq.true&order=name.asc"
+    );
+    if (!response.ok) throw new Error(await response.text());
+    res.json(await response.json());
+  } catch (error) {
+    console.error("Payment methods error:", error.message);
+    res.status(500).json({ error: "Could not load payment methods" });
+  }
+});
 
-// Health Check
-app.get("/api/health", (req, res) => {
+// Admin: Get All Payment Methods
+app.get("/api/admin/payment-methods", requireAdmin, async (req, res) => {
+  try {
+    const response = await supabaseRequest(
+      "payment_methods?select=*&order=name.asc"
+    );
+    if (!response.ok) throw new Error(await response.text());
+    res.json(await response.json());
+  } catch (error) {
+    console.error("Admin payment methods error:", error.message);
+    res.status(500).json({ error: "Could not load payment settings" });
+  }
+});
+
+// Admin: Update Payment Settings
+app.patch("/api/admin/payment-methods/:id", requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { details, enabled } = req.body;
+
+    if (
+      typeof details !== "string" ||
+      details.length > 500 ||
+      typeof enabled !== "boolean"
+    ) {
+      return res.status(400).json({ error: "Invalid payment settings" });
+    }
+
+    const response = await supabaseRequest(
+      `payment_methods?id=eq.${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        headers: { "Prefer": "return=representation" },
+        body: JSON.stringify({
+          details,
+          enabled,
+          updated_at: new Date().toISOString()
+        })
+      }
+    );
+
+    if (!response.ok) throw new Error(await response.text());
+
+    const updated = await response.json();
+
+    if (!updated.length) {
+      return res.status(404).json({ error: "Payment method not found" });
+    }
+
+    res.json({ success: true, payment_method: updated[0] });
+  } catch (error) {
+    console.error("Payment update error:", error.message);
+    res.status(500).json({ error: "Could not update payment settings" });
+  }
+});
+
 // Health Check
 app.get("/api/health", (req, res) => {
   res.json({ status: "online" });
