@@ -252,7 +252,12 @@ app.patch("/api/admin/orders/:id", requireAdmin, async (req, res) => {
     console.error("Order update error:", error.message);
     res.status(500).json({ error: "Could not update order" });
   }
-});
+});});
+
+// এখানে নতুন Payment Settings কোড বসবে
+
+// Health Check
+app.get("/api/health", (req, res) => {
 // Health Check
 app.get("/api/health", (req, res) => {
   res.json({ status: "online" });
