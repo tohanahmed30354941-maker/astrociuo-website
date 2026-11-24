@@ -9,6 +9,7 @@ const app = express();
 const otpStore = new Map();
 
 const mailTransporter = nodemailer.createTransport({
+  
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT || 465),
   secure: true,
@@ -17,6 +18,10 @@ const mailTransporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS
   }
 });
+// Test Gmail SMTP Connection
+mailTransporter.verify()
+  .then(() => console.log("GMAIL SMTP CONNECTED SUCCESSFULLY"))
+  .catch(error => console.error("GMAIL SMTP ERROR:", error.message));
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
