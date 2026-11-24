@@ -319,7 +319,46 @@ select option{background:#151020}
       <button class="btn" id="logoutButton">Logout</button>
       <button class="btn" onclick="showHome()">Website Home</button>
     </div>
+    <!-- Super Admin: Manage Admins -->
+    <div class="panel" id="manageAdminsPanel" style="display:none">
+      <h2>✦ Manage Admins</h2>
 
+      <h3>Add New Admin</h3>
+      <form id="createAdminForm">
+        <input
+          id="newAdminUsername"
+          placeholder="Admin Username"
+          required
+        >
+
+        <input
+          id="newAdminEmail"
+          type="email"
+          placeholder="Admin Gmail Address"
+          required
+        >
+
+        <input
+          id="newAdminPassword"
+          type="password"
+          placeholder="Admin Password (Minimum 8 Characters)"
+          minlength="8"
+          maxlength="100"
+          required
+        >
+
+        <button class="btn" type="submit">Add Admin</button>
+      </form>
+
+      <p class="status" id="createAdminStatus"></p>
+
+      <h3>Admin Accounts</h3>
+      <button class="btn" onclick="loadAdminAccounts()">
+        Refresh Admin List
+      </button>
+
+      <div id="adminAccountsList"></div>
+    </div>
     <div class="panel">
       <h2>Customer Orders</h2>
       <button class="btn" onclick="loadOrders()">Refresh Orders</button>
