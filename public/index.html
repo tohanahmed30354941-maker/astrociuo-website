@@ -951,7 +951,13 @@ async function loadTrustedServers(){
       item.href=server.invite_url;
       item.target="_blank";
       item.rel="noopener noreferrer";
-
+if(server.banner){
+  item.style.backgroundImage=
+    `linear-gradient(rgba(10,5,20,.45),rgba(10,5,20,.65)),url("${server.banner}")`;
+  item.style.backgroundSize="cover";
+  item.style.backgroundPosition="center";
+  item.style.borderRadius="14px";
+}
       if(server.icon){
         const img=document.createElement("img");
         img.src=server.icon;
