@@ -180,9 +180,26 @@ select option{background:#151020}
   </button>
 
   <p class="status" id="paymentStatus"></p>
-  <div id="paymentEditor" class="plans"></div>
+<div id="paymentEditor" class="plans"></div>
     </div>
-  </div>
+
+  <div class="panel">
+  <h2>🌟 Trusted Servers</h2>
+  <p class="small">Add Discord invite links to showcase trusted servers.</p>
+
+  <input
+    type="url"
+    id="trustedServerLink"
+    placeholder="Paste Discord Server Invite Link"
+  >
+
+  <button class="btn" onclick="addTrustedServer()">
+    + Add Trusted Server
+  </button>
+
+  <p class="status" id="trustedServerStatus"></p>
+  <div id="trustedServerEditor" class="plans"></div>
+</div>
 </section>
 
 <footer>© 2026 Astrociuos. All rights reserved.</footer>
