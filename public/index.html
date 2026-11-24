@@ -246,16 +246,12 @@ select option{background:#151020}
     </div>
   </section>
 
-  <section>
-    <h2>Payment Methods</h2>
-    <div class="plans">
-      <div class="card">bKash</div>
-      <div class="card">Nagad</div>
-      <div class="card">LTC</div>
-      <div class="card">Bybit</div>
-      <div class="card">Binance</div>
-    </div>
-  </section>
+<section>
+  <h2>Payment Methods</h2>
+  <div class="plans" id="publicPaymentMethods">
+    <p>Loading payment methods...</p>
+  </div>
+</section>
 
   <section id="orderPanel">
     <div class="order-card">
@@ -964,6 +960,7 @@ async function loadPaymentSettings(){
 async function loadPublicPaymentMethods(){
   const select=document.getElementById("paymentMethod");
   const detailsBox=document.getElementById("paymentDetails");
+  const publicList=document.getElementById("publicPaymentMethods");
 
   try{
     const response=await fetch("/api/payment-methods");
@@ -973,33 +970,36 @@ async function loadPublicPaymentMethods(){
 
     select.replaceChildren(new Option("Select Payment Method",""));
 
+    if(publicList){
+      publicList.replaceChildren();
+    }
+
     methods.forEach(method=>{
       const option=document.createElement("option");
       option.value=method.name;
       option.textContent=method.name;
       option.dataset.details=method.details||"";
       select.appendChild(option);
+
+      if(publicList){
+        const card=document.createElement("div");
+        card.className="card";
+        card.textContent=method.name;
+        publicList.appendChild(card);
+      }
     });
+
+    if(publicList && methods.length===0){
+      publicList.textContent="No payment methods available.";
+    }
 
   }catch(error){
     console.error(error);
+    if(publicList){
+      publicList.textContent="Could not load payment methods.";
+    }
   }
 }
-
-document.getElementById("paymentMethod").addEventListener("change",function(){
-  const detailsBox=document.getElementById("paymentDetails");
-  const option=this.selectedOptions[0];
-  const details=option?.dataset.details||"";
-
-  if(details){
-    detailsBox.style.display="block";
-    detailsBox.textContent=this.value+" Payment Details: "+details;
-  }else{
-    detailsBox.style.display="none";
-    detailsBox.textContent="";
-  }
-});
-
 loadPublicPaymentMethods();
 async function loadTrustedServersAdmin(){
   const editor=document.getElementById("trustedServerEditor");
