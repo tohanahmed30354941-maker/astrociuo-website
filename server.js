@@ -225,6 +225,72 @@ app.post("/api/admin/accounts", requireSuperAdmin, async (req, res) => {
     });
   }
 });
+// Super Admin: List Admin Accounts
+app.get("/api/admin/accounts", requireSuperAdmin, async (req, res) => {
+  try {
+    const response = await supabaseRequest(
+      "admin_accounts?select=id,username,email,created_at,is_active&order=id.asc"
+    );
+
+    if (!response.ok) throw new Error(await response.text());
+
+    res.json(await response.json());
+  } catch (error) {
+    console.error("List Admins error:", error.message);
+    res.status(500).json({ error: "Could not load Admin accounts" });
+  }
+});
+// Super Admin: Delete Admin Account
+app.delete("/api/admin/accounts/:id", requireSuperAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    if (!/^\d+$/.test(id)) {
+      return res.status(400).json({ error: "Invalid Admin ID" });
+    }
+
+    const check = await supabaseRequest(
+      `admin_accounts?id=eq.${id}&select=username`
+    );
+
+    if (!check.ok) throw new Error(await check.text());
+
+    const accounts = await check.json();
+    const admin = accounts[0];
+
+    if (!admin) {
+      return res.status(404).json({ error: "Admin not found" });
+    }
+
+    if (
+      admin.username.toLowerCase() === "tohanadmin" ||
+      admin.username === process.env.ADMIN_USERNAME
+    ) {
+      return res.status(403).json({
+        error: "Super Admin cannot be deleted"
+      });
+    }
+
+    const response = await supabaseRequest(
+      `admin_accounts?id=eq.${id}`,
+      { method: "DELETE" }
+    );
+
+    if (!response.ok) throw new Error(await response.text());
+
+    res.json({
+      success: true,
+      message: "Admin deleted successfully"
+    });
+
+  } catch (error) {
+    console.error("Delete Admin error:", error.message);
+    res.status(500).json({
+      error: "Could not delete Admin"
+    });
+  }
+});
+
 // Get all Premium Plans
 app.get("/api/plans", async (req, res) => {
   try {
