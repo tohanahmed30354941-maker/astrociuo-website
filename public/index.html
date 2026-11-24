@@ -543,58 +543,156 @@ async function loadAdminPlans(){
   }
 }
 
+
 function renderAdminPlans(){
   const server=allPlans.filter(p=>p.plan_type==="Server Premium");
   const users=allPlans.filter(p=>p.plan_type==="No Prefix User");
 
+  const addForm=`
+    <div class="edit-card">
+      <h3>Add New Premium Plan</h3>
+      <label>Plan Type</label>
+      <select id="newPlanType">
+        <option value="Server Premium">Server Premium</option>
+        <option value="No Prefix User">No Prefix User</option>
+      </select>
+      <label>Duration (Months)</label>
+      <input type="number" id="newPlanMonths" min="1" max="120" step="1" placeholder="e.g. 6">
+      <label>Price in BDT (৳)</label>
+      <input type="number" id="newPlanPrice" min="0" step="1" placeholder="e.g. 500">
+      <button class="btn" onclick="addPlan()">Add New Plan</button>
+    </div>
+  `;
+
   function makeEditor(plans){
+    if(!plans.length) return "<p>No plans available.</p>";
+
     return plans.map(p=>`
       <div class="edit-card">
         <h3>${p.plan_type} - ${p.months} Month</h3>
+
+        <label>Plan Type</label>
+        <select id="type-${p.id}">
+          <option value="Server Premium" ${p.plan_type==="Server Premium"?"selected":""}>Server Premium</option>
+          <option value="No Prefix User" ${p.plan_type==="No Prefix User"?"selected":""}>No Prefix User</option>
+        </select>
+
+        <label>Duration (Months)</label>
+        <input type="number" min="1" max="120" step="1"
+          id="months-${p.id}" value="${p.months}">
+
         <label>Price in BDT (৳)</label>
         <input type="number" min="0" step="1"
           id="price-${p.id}" value="${p.price_bdt}">
-        <button class="btn" onclick="savePrice('${p.id}')">Save Price</button>
+
+        <button class="btn" onclick="savePlan('${p.id}')">Save Changes</button>
+        <button class="btn" onclick="deletePlan('${p.id}')">Delete Plan</button>
       </div>
     `).join("");
   }
 
-  document.getElementById("serverEditor").innerHTML=makeEditor(server);
+  document.getElementById("serverEditor").innerHTML=
+    addForm+makeEditor(server);
+
   document.getElementById("userEditor").innerHTML=makeEditor(users);
 }
 
-async function savePrice(id){
-  const input=document.getElementById("price-"+id);
-  const status=document.getElementById("adminStatus");
-  const price=Number(input.value);
+async function refreshPlans(){
+  const response=await fetch("/api/plans");
+  if(!response.ok) throw new Error("Could not refresh plans");
 
-  if(input.value.trim()==="" || !Number.isInteger(price) || price<0){
-    status.textContent="Please enter a valid price.";
+  allPlans=await response.json();
+  renderPublicPlans();
+  renderAdminPlans();
+}
+
+async function addPlan(){
+  const status=document.getElementById("adminStatus");
+  const plan_type=document.getElementById("newPlanType").value;
+  const months=Number(document.getElementById("newPlanMonths").value);
+  const price_bdt=Number(document.getElementById("newPlanPrice").value);
+
+  if(!Number.isInteger(months)||months<1||months>120||
+     !Number.isInteger(price_bdt)||price_bdt<0||
+     document.getElementById("newPlanMonths").value.trim()===""||
+     document.getElementById("newPlanPrice").value.trim()===""){
+    status.textContent="Enter valid months and price.";
     return;
   }
 
-  status.textContent="Saving price...";
+  status.textContent="Adding plan...";
+
+  try{
+    const response=await fetch("/api/admin/plans",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({plan_type,months,price_bdt})
+    });
+
+    const data=await response.json();
+    if(!response.ok) throw new Error(data.error||"Could not add plan");
+
+    await refreshPlans();
+    status.textContent="New plan added successfully!";
+  }catch(error){
+    status.textContent=error.message;
+  }
+}
+
+async function savePlan(id){
+  const status=document.getElementById("adminStatus");
+  const plan_type=document.getElementById("type-"+id).value;
+  const months=Number(document.getElementById("months-"+id).value);
+  const price_bdt=Number(document.getElementById("price-"+id).value);
+
+  if(!Number.isInteger(months)||months<1||months>120||
+     !Number.isInteger(price_bdt)||price_bdt<0||
+     document.getElementById("months-"+id).value.trim()===""||
+     document.getElementById("price-"+id).value.trim()===""){
+    status.textContent="Enter valid months and price.";
+    return;
+  }
+
+  status.textContent="Saving plan...";
 
   try{
     const response=await fetch("/api/admin/plans/"+encodeURIComponent(id),{
       method:"PUT",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({price_bdt:price})
+      body:JSON.stringify({plan_type,months,price_bdt})
     });
 
     const data=await response.json();
-    if(!response.ok) throw new Error(data.error||"Could not save price");
+    if(!response.ok) throw new Error(data.error||"Could not save plan");
 
-    const index=allPlans.findIndex(p=>p.id===id);
-    if(index!==-1) allPlans[index].price_bdt=price;
-
-    renderPublicPlans();
-    renderAdminPlans();
-    status.textContent="Price saved successfully! ৳"+price;
+    await refreshPlans();
+    status.textContent="Plan updated successfully!";
   }catch(error){
     status.textContent=error.message;
   }
 }
+
+async function deletePlan(id){
+  if(!confirm("Are you sure you want to delete this plan?")) return;
+
+  const status=document.getElementById("adminStatus");
+  status.textContent="Deleting plan...";
+
+  try{
+    const response=await fetch("/api/admin/plans/"+encodeURIComponent(id),{
+      method:"DELETE"
+    });
+
+    const data=await response.json();
+    if(!response.ok) throw new Error(data.error||"Could not delete plan");
+
+    await refreshPlans();
+    status.textContent="Plan deleted successfully!";
+  }catch(error){
+    status.textContent=error.message;
+  }
+}
+
 
 function addOrderText(parent,label,value){
   const p=document.createElement("p");
