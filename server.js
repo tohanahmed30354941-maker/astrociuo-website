@@ -182,6 +182,13 @@ app.post("/api/admin/forgot-password", async (req, res) => {
   };
 
   try {
+    const email = String(req.body.email || "")
+  .trim()
+  .toLowerCase();
+
+if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  return res.json(genericMessage);
+}
     const superAdminEmail = String(
   process.env.SUPER_ADMIN_EMAIL || ""
 ).trim().toLowerCase();
@@ -259,6 +266,8 @@ if (email === superAdminEmail && superAdminEmail) {
   }
 });
 // Reset Admin Password: Verify OTP
+
+// Reset Admin Password: Verify OTP
 app.post("/api/admin/reset-password", async (req, res) => {
   try {
     const email = String(req.body.email || "").trim().toLowerCase();
@@ -276,37 +285,83 @@ app.post("/api/admin/reset-password", async (req, res) => {
       });
     }
 
+    // Find OTP record
+    const record = otpStore.get(email);
+
+    if (!record || Date.now() > record.expiresAt) {
+      otpStore.delete(email);
+      return res.status(400).json({
+        error: "OTP expired or invalid"
+      });
+    }
+
+    // Limit OTP attempts
+    if (record.attempts >= 5) {
+      otpStore.delete(email);
+      return res.status(429).json({
+        error: "Too many attempts"
+      });
+    }
+
+    // Verify OTP
+    const submittedHash = crypto
+      .createHash("sha256")
+      .update(otp)
+      .digest("hex");
+
+    const valid = crypto.timingSafeEqual(
+      Buffer.from(record.otpHash, "hex"),
+      Buffer.from(submittedHash, "hex")
+    );
+
+    if (!valid) {
+      record.attempts++;
+
+      if (record.attempts >= 5) {
+        otpStore.delete(email);
+      }
+
+      return res.status(400).json({
+        error: "Invalid OTP"
+      });
+    }
+
+    // Hash new password
     const password_hash = await bcrypt.hash(newPassword, 12);
 
-let response;
+    let response;
 
-if (record.isSuperAdmin) {
-  response = await supabaseRequest(
-    `super_admin_credentials?on_conflict=username`,
-    {
-      method: "POST",
-      headers: {
-        "Prefer": "resolution=merge-duplicates,return=minimal"
-      },
-      body: JSON.stringify({
-        username: process.env.ADMIN_USERNAME,
-        password_hash,
-        updated_at: new Date().toISOString()
-      })
+    if (record.isSuperAdmin) {
+      response = await supabaseRequest(
+        `super_admin_credentials?on_conflict=username`,
+        {
+          method: "POST",
+          headers: {
+            "Prefer": "resolution=merge-duplicates,return=minimal"
+          },
+          body: JSON.stringify({
+            username: process.env.ADMIN_USERNAME,
+            password_hash,
+            updated_at: new Date().toISOString()
+          })
+        }
+      );
+    } else {
+      response = await supabaseRequest(
+        `admin_accounts?id=eq.${encodeURIComponent(record.adminId)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Prefer": "return=minimal"
+          },
+          body: JSON.stringify({ password_hash })
+        }
+      );
     }
-  );
-} else {
-  response = await supabaseRequest(
-    `admin_accounts?id=eq.${encodeURIComponent(record.adminId)}`,
-    {
-      method: "PATCH",
-      headers: { "Prefer": "return=minimal" },
-      body: JSON.stringify({ password_hash })
-    }
-  );
-}
 
-    if (!response.ok) throw new Error(await response.text());
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
 
     otpStore.delete(email);
 
@@ -317,9 +372,13 @@ if (record.isSuperAdmin) {
 
   } catch (error) {
     console.error("Reset Password error:", error.message);
-    return res.status(500).json({ error: "Password reset failed" });
+
+    return res.status(500).json({
+      error: "Password reset failed"
+    });
   }
 });
+
 // Super Admin: Create New Admin
 app.post("/api/admin/accounts", requireSuperAdmin, async (req, res) => {
   try {
