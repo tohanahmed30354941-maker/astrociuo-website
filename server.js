@@ -65,34 +65,76 @@ const supabaseRequest = async (path, options = {}) => {
     }
   });
 };
-
 // Admin Login
-app.post("/api/admin/login", (req, res) => {
-  const { username, password } = req.body;
+app.post("/api/admin/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
 
-  if (
-    !process.env.ADMIN_USERNAME ||
-    !process.env.ADMIN_PASSWORD
-  ) {
-    return res.status(500).json({ error: "Admin login is not configured" });
+    if (!username || !password) {
+      return res.status(400).json({
+        error: "Username and password required"
+      });
+    }
+
+    // Super Admin Login
+    if (
+      username === process.env.ADMIN_USERNAME &&
+      password === process.env.ADMIN_PASSWORD
+    ) {
+      req.session.isAdmin = true;
+      req.session.isSuperAdmin = true;
+      req.session.adminUsername = username;
+
+      return res.json({
+        success: true,
+        message: "Super Admin login successful"
+      });
+    }
+
+    // Other Admin Login
+    const response = await supabaseRequest(
+      `admin_accounts?username=eq.${encodeURIComponent(username)}&select=username,password_hash,is_active`
+    );
+
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+
+    const accounts = await response.json();
+    const admin = accounts[0];
+
+    if (
+      !admin ||
+      !admin.is_active ||
+      !(await bcrypt.compare(password, admin.password_hash))
+    ) {
+      return res.status(401).json({
+        error: "Invalid username or password"
+      });
+    }
+
+    req.session.isAdmin = true;
+    req.session.isSuperAdmin = false;
+    req.session.adminUsername = admin.username;
+
+    res.json({
+      success: true,
+      message: "Admin login successful"
+    });
+
+  } catch (error) {
+    console.error("Admin login error:", error.message);
+    res.status(500).json({ error: "Login failed" });
   }
-
-  if (
-    username !== process.env.ADMIN_USERNAME ||
-    password !== process.env.ADMIN_PASSWORD
-  ) {
-    return res.status(401).json({ error: "Invalid username or password" });
-  }
-
-  req.session.isAdmin = true;
-  res.json({ success: true, message: "Login successful" });
 });
-
 // Check Admin Login
 app.get("/api/admin/check", requireAdmin, (req, res) => {
-  res.json({ loggedIn: true });
+  res.json({
+    loggedIn: true,
+    isSuperAdmin: req.session.isSuperAdmin === true,
+    username: req.session.adminUsername
+  });
 });
-
 // Logout
 app.post("/api/admin/logout", (req, res) => {
   req.session.destroy(() => {
