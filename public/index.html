@@ -697,6 +697,96 @@ document.getElementById("paymentMethod").addEventListener("change",function(){
 });
 
 loadPublicPaymentMethods();
+async function loadTrustedServersAdmin(){
+  const editor=document.getElementById("trustedServerEditor");
+  const status=document.getElementById("trustedServerStatus");
+
+  try{
+    const response=await fetch("/api/trusted-servers");
+    if(!response.ok) throw new Error("Could not load servers");
+
+    const servers=await response.json();
+    editor.replaceChildren();
+
+    servers.forEach(server=>{
+      const card=document.createElement("div");
+      card.className="edit-card";
+
+      const name=document.createElement("h3");
+      name.textContent=server.name;
+      card.appendChild(name);
+
+      const link=document.createElement("p");
+      link.textContent=server.invite_url;
+      card.appendChild(link);
+
+      const count=document.createElement("p");
+      count.textContent="Members: "+(server.members ?? "N/A");
+      card.appendChild(count);
+
+      const button=document.createElement("button");
+      button.className="btn";
+      button.textContent="Delete Server";
+      button.onclick=()=>deleteTrustedServer(server.id);
+      card.appendChild(button);
+
+      editor.appendChild(card);
+    });
+
+    status.textContent=servers.length+" trusted server(s) loaded.";
+  }catch(error){
+    status.textContent=error.message;
+  }
+}
+
+async function addTrustedServer(){
+  const input=document.getElementById("trustedServerLink");
+  const status=document.getElementById("trustedServerStatus");
+  const invite_url=input.value.trim();
+
+  if(!invite_url){
+    status.textContent="Please paste a Discord invite link.";
+    return;
+  }
+
+  try{
+    status.textContent="Adding server...";
+
+    const response=await fetch("/api/admin/trusted-servers",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({invite_url})
+    });
+
+    const data=await response.json();
+    if(!response.ok) throw new Error(data.error||"Could not add server");
+
+    input.value="";
+    status.textContent="Server added successfully!";
+    await loadTrustedServersAdmin();
+    await loadTrustedServers();
+  }catch(error){
+    status.textContent=error.message;
+  }
+}
+
+async function deleteTrustedServer(id){
+  if(!confirm("Delete this trusted server?")) return;
+
+  try{
+    const response=await fetch("/api/admin/trusted-servers/"+id,{
+      method:"DELETE"
+    });
+
+    const data=await response.json();
+    if(!response.ok) throw new Error(data.error||"Could not delete server");
+
+    await loadTrustedServersAdmin();
+    await loadTrustedServers();
+  }catch(error){
+    document.getElementById("trustedServerStatus").textContent=error.message;
+  }
+}  
 async function loadTrustedServers(){
   const section=document.getElementById("trustedServersSection");
   const track=document.getElementById("trustedServerTrack");
@@ -754,6 +844,7 @@ async function loadTrustedServers(){
 }
 
 loadTrustedServers();  
+  loadTrustedServersAdmin();
 if(location.hash==="#admin")openAdmin();
 
 loadPlans();
