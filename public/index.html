@@ -313,6 +313,16 @@ select option{background:#151020}
     </div>
 
     <div class="panel">
+     
+      <h2>Background Video Settings</h2>
+      <input type="file" id="backgroundVideo"
+        accept="video/mp4,video/webm,video/quicktime">
+      <button class="btn" type="button" onclick="uploadBackgroundVideo()">
+        Upload Background Video
+      </button>
+      <p class="status" id="backgroundVideoStatus"></p>
+    </div>
+   <div class="panel">
       <h2>Server Premium Prices</h2>
       <div id="serverEditor" class="plans"></div>
     </div>
