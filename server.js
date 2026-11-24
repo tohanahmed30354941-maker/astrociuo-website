@@ -106,46 +106,71 @@ app.get("/api/plans", async (req, res) => {
       "plan_prices?select=id,plan_type,months,price_bdt&order=months.asc"
     );
 
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
+    if (!response.ok) throw new Error(await response.text());
 
-    const plans = await response.json();
-    res.json(plans);
+    res.json(await response.json());
   } catch (error) {
     console.error("Plans error:", error.message);
     res.status(500).json({ error: "Could not load plans" });
   }
 });
 
-// Update a Premium Plan price (Admin only)
-app.put("/api/admin/plans/:id", requireAdmin, async (req, res) => {
+// Admin: Add New Plan
+app.post("/api/admin/plans", requireAdmin, async (req, res) => {
   try {
-    const { price_bdt } = req.body;
-    const id = req.params.id;
+    const { plan_type, months, price_bdt } = req.body;
 
     if (
-      !/^(server|user)_[1-8]$/.test(id) ||
-      !Number.isInteger(price_bdt) ||
-      price_bdt < 0
+      !["Server Premium", "No Prefix User"].includes(plan_type) ||
+      !Number.isInteger(months) || months < 1 || months > 120 ||
+      !Number.isInteger(price_bdt) || price_bdt < 0
     ) {
-      return res.status(400).json({ error: "Invalid plan or price" });
+      return res.status(400).json({ error: "Invalid plan information" });
+    }
+
+    const prefix = plan_type === "Server Premium" ? "server" : "user";
+    const id = `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    const response = await supabaseRequest("plan_prices", {
+      method: "POST",
+      headers: { "Prefer": "return=representation" },
+      body: JSON.stringify({ id, plan_type, months, price_bdt })
+    });
+
+    if (!response.ok) throw new Error(await response.text());
+
+    res.json({ success: true, plan: (await response.json())[0] });
+  } catch (error) {
+    console.error("Add plan error:", error.message);
+    res.status(500).json({ error: "Could not add plan" });
+  }
+});
+
+// Admin: Update Plan
+app.put("/api/admin/plans/:id", requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { plan_type, months, price_bdt } = req.body;
+
+    if (
+      !/^(server|user)_[A-Za-z0-9_-]{1,100}$/.test(id) ||
+      !["Server Premium", "No Prefix User"].includes(plan_type) ||
+      !Number.isInteger(months) || months < 1 || months > 120 ||
+      !Number.isInteger(price_bdt) || price_bdt < 0
+    ) {
+      return res.status(400).json({ error: "Invalid plan information" });
     }
 
     const response = await supabaseRequest(
       `plan_prices?id=eq.${encodeURIComponent(id)}`,
       {
         method: "PATCH",
-        headers: {
-          "Prefer": "return=representation"
-        },
-        body: JSON.stringify({ price_bdt })
+        headers: { "Prefer": "return=representation" },
+        body: JSON.stringify({ plan_type, months, price_bdt })
       }
     );
 
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
+    if (!response.ok) throw new Error(await response.text());
 
     const updated = await response.json();
 
@@ -155,10 +180,43 @@ app.put("/api/admin/plans/:id", requireAdmin, async (req, res) => {
 
     res.json({ success: true, plan: updated[0] });
   } catch (error) {
-    console.error("Update error:", error.message);
-    res.status(500).json({ error: "Could not update plan price" });
+    console.error("Update plan error:", error.message);
+    res.status(500).json({ error: "Could not update plan" });
   }
 });
+
+// Admin: Delete Plan
+app.delete("/api/admin/plans/:id", requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    if (!/^(server|user)_[A-Za-z0-9_-]{1,100}$/.test(id)) {
+      return res.status(400).json({ error: "Invalid plan ID" });
+    }
+
+    const response = await supabaseRequest(
+      `plan_prices?id=eq.${encodeURIComponent(id)}`,
+      {
+        method: "DELETE",
+        headers: { "Prefer": "return=representation" }
+      }
+    );
+
+    if (!response.ok) throw new Error(await response.text());
+
+    const deleted = await response.json();
+
+    if (!deleted.length) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Delete plan error:", error.message);
+    res.status(500).json({ error: "Could not delete plan" });
+  }
+});
+
 // Customer Submit Order
 app.post("/api/orders", async (req, res) => {
   try {
