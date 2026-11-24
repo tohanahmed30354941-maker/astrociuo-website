@@ -153,7 +153,78 @@ app.post("/api/admin/logout", (req, res) => {
     res.json({ success: true });
   });
 });
+// Super Admin: Create New Admin
+app.post("/api/admin/accounts", requireSuperAdmin, async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
 
+    if (
+      !username ||
+      !/^[A-Za-z0-9_-]{3,30}$/.test(username) ||
+      !email ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      !password ||
+      password.length < 8 ||
+      password.length > 100
+    ) {
+      return res.status(400).json({
+        error: "Invalid username, email or password"
+      });
+    }
+
+    const check = await supabaseRequest(
+      `admin_accounts?username=eq.${encodeURIComponent(username)}&select=id`
+    );
+
+    if (!check.ok) throw new Error(await check.text());
+
+    if ((await check.json()).length > 0) {
+      return res.status(409).json({
+        error: "Username already exists"
+      });
+    }
+
+    const emailCheck = await supabaseRequest(
+      `admin_accounts?email=ilike.${encodeURIComponent(email)}&select=id`
+    );
+
+    if (!emailCheck.ok) throw new Error(await emailCheck.text());
+
+    if ((await emailCheck.json()).length > 0) {
+      return res.status(409).json({
+        error: "Email already exists"
+      });
+    }
+
+    const password_hash = await bcrypt.hash(password, 12);
+
+    const response = await supabaseRequest("admin_accounts", {
+      method: "POST",
+      headers: {
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify({
+        username,
+        email: email.toLowerCase(),
+        password_hash,
+        is_active: true
+      })
+    });
+
+    if (!response.ok) throw new Error(await response.text());
+
+    res.json({
+      success: true,
+      message: "New Admin created successfully"
+    });
+
+  } catch (error) {
+    console.error("Create Admin error:", error.message);
+    res.status(500).json({
+      error: "Could not create Admin"
+    });
+  }
+});
 // Get all Premium Plans
 app.get("/api/plans", async (req, res) => {
   try {
