@@ -124,7 +124,6 @@ select option{background:#151020}
   padding:15px 0;
   background:#151020;
 }
-
 .trusted-track{
   display:flex;
   align-items:center;
@@ -133,6 +132,10 @@ select option{background:#151020}
   animation:trustedScroll 25s linear infinite;
 }
 
+@keyframes trustedScroll{
+  from{transform:translateX(0)}
+  to{transform:translateX(-50%)}
+}
 
 .trusted-server-item{
   display:grid;
