@@ -107,10 +107,26 @@ app.post("/api/admin/login", async (req, res) => {
     }
 
     // Super Admin Login
-    if (
-      username === process.env.ADMIN_USERNAME &&
-      password === process.env.ADMIN_PASSWORD
-    ) {
+if (username === process.env.ADMIN_USERNAME) {
+  const check = await supabaseRequest(
+    `super_admin_credentials?username=eq.${encodeURIComponent(username)}&select=password_hash`
+  );
+
+  if (!check.ok) {
+    throw new Error(await check.text());
+  }
+
+  const savedCredentials = await check.json();
+
+  const validPassword = savedCredentials.length > 0
+    ? await bcrypt.compare(password, savedCredentials[0].password_hash)
+    : password === process.env.ADMIN_PASSWORD;
+
+  if (!validPassword) {
+    return res.status(401).json({
+      error: "Invalid username or password"
+    });
+  }
       req.session.isAdmin = true;
       req.session.isSuperAdmin = true;
       req.session.adminUsername = username;
@@ -179,22 +195,31 @@ app.post("/api/admin/forgot-password", async (req, res) => {
   };
 
   try {
-    const email = String(req.body.email || "").trim().toLowerCase();
+    const superAdminEmail = String(
+  process.env.SUPER_ADMIN_EMAIL || ""
+).trim().toLowerCase();
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return res.json(genericMessage);
-    }
+let admin = null;
+let isSuperAdmin = false;
 
-    const response = await supabaseRequest(
-      `admin_accounts?email=eq.${encodeURIComponent(email)}&select=id,email,is_active`
-    );
+if (email === superAdminEmail && superAdminEmail) {
+  admin = {
+    id: null,
+    email: superAdminEmail
+  };
+  isSuperAdmin = true;
+} else {
+  const response = await supabaseRequest(
+    `admin_accounts?email=eq.${encodeURIComponent(email)}&select=id,email,is_active`
+  );
 
-    if (!response.ok) throw new Error(await response.text());
+  if (!response.ok) throw new Error(await response.text());
 
-    const accounts = await response.json();
-    const admin = accounts.find(a => a.is_active);
+  const accounts = await response.json();
+  admin = accounts.find(a => a.is_active);
 
-    if (!admin) return res.json(genericMessage);
+  if (!admin) return res.json(genericMessage);
+}
 
     const previous = otpStore.get(email);
 
@@ -206,12 +231,13 @@ app.post("/api/admin/forgot-password", async (req, res) => {
     const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
     otpStore.set(email, {
-      adminId: admin.id,
-      otpHash,
-      expiresAt: Date.now() + 5 * 60 * 1000,
-      attempts: 0,
-      lastSentAt: Date.now()
-    });
+  adminId: admin.id,
+  isSuperAdmin,
+  otpHash,
+  expiresAt: Date.now() + 5 * 60 * 1000,
+  attempts: 0,
+  lastSentAt: Date.now()
+});
 
     try {
   const emailResponse = await fetch("https://api.resend.com/emails", {
@@ -263,45 +289,35 @@ app.post("/api/admin/reset-password", async (req, res) => {
       });
     }
 
-    const record = otpStore.get(email);
-
-    if (!record || Date.now() > record.expiresAt) {
-      otpStore.delete(email);
-      return res.status(400).json({ error: "OTP expired or invalid" });
-    }
-
-    if (record.attempts >= 5) {
-      otpStore.delete(email);
-      return res.status(429).json({ error: "Too many attempts" });
-    }
-
-    const submittedHash = crypto.createHash("sha256").update(otp).digest("hex");
-
-    const valid = crypto.timingSafeEqual(
-      Buffer.from(record.otpHash, "hex"),
-      Buffer.from(submittedHash, "hex")
-    );
-
-    if (!valid) {
-      record.attempts++;
-
-      if (record.attempts >= 5) {
-        otpStore.delete(email);
-      }
-
-      return res.status(400).json({ error: "Invalid OTP" });
-    }
-
     const password_hash = await bcrypt.hash(newPassword, 12);
 
-    const response = await supabaseRequest(
-      `admin_accounts?id=eq.${encodeURIComponent(record.adminId)}`,
-      {
-        method: "PATCH",
-        headers: { "Prefer": "return=minimal" },
-        body: JSON.stringify({ password_hash })
-      }
-    );
+let response;
+
+if (record.isSuperAdmin) {
+  response = await supabaseRequest(
+    `super_admin_credentials?on_conflict=username`,
+    {
+      method: "POST",
+      headers: {
+        "Prefer": "resolution=merge-duplicates,return=minimal"
+      },
+      body: JSON.stringify({
+        username: process.env.ADMIN_USERNAME,
+        password_hash,
+        updated_at: new Date().toISOString()
+      })
+    }
+  );
+} else {
+  response = await supabaseRequest(
+    `admin_accounts?id=eq.${encodeURIComponent(record.adminId)}`,
+    {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: JSON.stringify({ password_hash })
+    }
+  );
+}
 
     if (!response.ok) throw new Error(await response.text());
 
