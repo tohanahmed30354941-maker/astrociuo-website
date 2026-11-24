@@ -214,12 +214,23 @@ app.post("/api/admin/forgot-password", async (req, res) => {
     });
 
     try {
-      await mailTransporter.sendMail({
-        from: process.env.SMTP_USER,
-        to: admin.email,
-        subject: "Astrociuos Admin Password Reset OTP",
-        text: `Your password reset OTP is ${otp}. It expires in 5 minutes. Do not share this code.`
-      });
+  const emailResponse = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      from: "Astrociuos <onboarding@resend.dev>",
+      to: [admin.email],
+      subject: "Astrociuos Admin Password Reset OTP",
+      text: `Your password reset OTP is ${otp}. It expires in 5 minutes. Do not share this code.`
+    })
+  });
+
+  if (!emailResponse.ok) {
+    throw new Error(await emailResponse.text());
+  }
     } catch (mailError) {
       otpStore.delete(email);
       throw mailError;
