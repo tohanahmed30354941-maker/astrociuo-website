@@ -345,8 +345,8 @@ if (!guild) return null;
       ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
       : null,
     banner: guild.banner
-      ? `https://cdn.discordapp.com/banners/${guild.id}/${guild.banner}.png`
-      : null,
+  ? `https://cdn.discordapp.com/banners/${guild.id}/${guild.banner}.${guild.banner.startsWith("a_") ? "gif" : "png"}`
+  : null,
     members: data.approximate_member_count ?? null,
     online: data.approximate_presence_count ?? null
   };
