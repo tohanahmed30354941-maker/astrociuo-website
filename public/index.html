@@ -133,14 +133,18 @@ select option{background:#151020}
   animation:trustedScroll 25s linear infinite;
 }
 
+
 .trusted-server-item{
-  display:flex;
+  display:grid;
+  grid-template-columns:42px max-content;
+  grid-template-rows:repeat(4, auto);
   align-items:center;
-  gap:12px;
+  column-gap:12px;
+  row-gap:4px;
   white-space:nowrap;
   color:white;
   padding:14px 20px;
-  min-height:85px;
+  min-height:100px;
   min-width:280px;
   border:1px solid #493568;
   border-radius:14px;
@@ -151,10 +155,20 @@ select option{background:#151020}
 }
 
 .trusted-server-item img{
+  grid-column:1;
+  grid-row:1 / span 4;
   width:42px;
   height:42px;
   border-radius:50%;
   object-fit:cover;
+}
+
+.trusted-server-info{
+  grid-column:2;
+  grid-row:1 / span 4;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
 }
 
 .trusted-server-item strong{
@@ -166,21 +180,7 @@ select option{background:#151020}
   font-size:13px;
 }
 
-@keyframes trustedScroll{
-  from{transform:translateX(0)}
-  to{transform:translateX(-50%)}
-}
-
-.trusted-marquee:hover .trusted-track{
-  animation-play-state:paused;
-}
-</style>
-</head>
-<body>
-
-
-<header>
-  <div class="logo">✦ Astrociuos</div>
+trociuos</div>
   <nav>
     <a class="btn" href="https://discord.com/oauth2/authorize?client_id=1573395411224240168&scope=bot%20applications.commands&permissions=0" target="_blank">
       Invite Bot
