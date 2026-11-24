@@ -979,7 +979,9 @@ if(server.banner){
       const count=document.createElement("span");
       count.textContent="👥 "+(server.members ?? "N/A")+" Members";
       item.appendChild(count);
-
+const online=document.createElement("span");
+online.textContent="🟢 "+(server.online ?? "N/A")+" Online";
+item.appendChild(online);
       const join=document.createElement("span");
       join.textContent="Join Server →";
       item.appendChild(join);
