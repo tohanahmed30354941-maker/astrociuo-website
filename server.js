@@ -323,7 +323,115 @@ app.patch("/api/admin/payment-methods/:id", requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Could not update payment settings" });
   }
 });
+// Trusted Servers API
 
+async function getTrustedServerInfo(server) {
+  const response = await fetch(
+    `https://discord.com/api/v10/invites/${encodeURIComponent(server.invite_code)}?with_counts=true`
+  );
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json();
+  const guild = data.guild;
+if (!guild) return null;
+  return {
+    id: server.id,
+    name: guild.name,
+    invite_url: server.invite_url,
+    icon: guild.icon
+      ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
+      : null,
+    banner: guild.banner
+      ? `https://cdn.discordapp.com/banners/${guild.id}/${guild.banner}.png`
+      : null,
+    members: data.approximate_member_count ?? null,
+    online: data.approximate_presence_count ?? null
+  };
+}
+
+app.get("/api/trusted-servers", async (req, res) => {
+  try {
+    const response = await supabaseRequest(
+      "trusted_servers?select=*&order=id.desc"
+    );
+
+    if (!response.ok) throw new Error(await response.text());
+
+    const servers = await response.json();
+    const results = await Promise.all(
+      servers.map(getTrustedServerInfo)
+    );
+
+    res.json(results.filter(Boolean));
+  } catch (error) {
+    console.error("Trusted servers error:", error.message);
+    res.status(500).json({ error: "Could not load servers" });
+  }
+});
+
+app.post("/api/admin/trusted-servers", requireAdmin, async (req, res) => {
+  try {
+    const inviteUrl = (req.body.invite_url || "").trim();
+    const match = inviteUrl.match(
+      /^(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord\.com\/invite\/)([a-zA-Z0-9-]+)\/?$/i
+    );
+
+    if (!match) {
+      return res.status(400).json({ error: "Invalid Discord invite link" });
+    }
+
+    const inviteCode = match[1];
+
+    const check = await fetch(
+      `https://discord.com/api/v10/invites/${encodeURIComponent(inviteCode)}?with_counts=true`
+    );
+
+    if (!check.ok) {
+      return res.status(400).json({ error: "Discord invite is invalid or unavailable" });
+    }
+
+    const response = await supabaseRequest("trusted_servers", {
+      method: "POST",
+      headers: { "Prefer": "return=representation" },
+      body: JSON.stringify({
+        invite_url: `https://discord.gg/${inviteCode}`,
+        invite_code: inviteCode
+      })
+    });
+
+    if (!response.ok) throw new Error(await response.text());
+
+    res.json({ success: true, server: (await response.json())[0] });
+  } catch (error) {
+    console.error("Add trusted server error:", error.message);
+    res.status(500).json({ error: "Could not add server" });
+  }
+});
+
+app.delete("/api/admin/trusted-servers/:id", requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id < 1) {
+      return res.status(400).json({ error: "Invalid server ID" });
+    }
+
+    const response = await supabaseRequest(
+      `trusted_servers?id=eq.${id}`,
+      { method: "DELETE" }
+    );
+
+    if (!response.ok) throw new Error(await response.text());
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Delete trusted server error:", error.message);
+    res.status(500).json({ error: "Could not delete server" });
+  }
+});
 // Health Check
 app.get("/api/health", (req, res) => {
   res.json({ status: "online" });
