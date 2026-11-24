@@ -228,7 +228,7 @@ app.post("/api/orders", async (req, res) => {
     } = req.body;
 
     if (
-      !/^((server|user)_[1-8])$/.test(plan_id || "") ||
+      !/^(server|user)_[A-Za-z0-9_-]{1,100}$/.test(plan_id || "") ||
       !/^\d{17,20}$/.test(discord_user_id || "") ||
       !["bKash", "Nagad", "LTC", "Bybit", "Binance"].includes(payment_method) ||
       !transaction_id ||
