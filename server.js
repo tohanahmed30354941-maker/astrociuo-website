@@ -3,7 +3,20 @@ const express = require("express");
 const session = require("express-session");
 const multer = require("multer");
 const bcrypt = require("bcryptjs");
+const nodemailer = require("nodemailer");
+const crypto = require("crypto");
 const app = express();
+const otpStore = new Map();
+
+const mailTransporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT || 465),
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  }
+});
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -152,6 +165,141 @@ app.post("/api/admin/logout", (req, res) => {
   req.session.destroy(() => {
     res.json({ success: true });
   });
+});
+// Forgot Password: Send OTP
+app.post("/api/admin/forgot-password", async (req, res) => {
+  const genericMessage = {
+    success: true,
+    message: "If an Admin account exists, an OTP has been sent."
+  };
+
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.json(genericMessage);
+    }
+
+    const response = await supabaseRequest(
+      `admin_accounts?email=eq.${encodeURIComponent(email)}&select=id,email,is_active`
+    );
+
+    if (!response.ok) throw new Error(await response.text());
+
+    const accounts = await response.json();
+    const admin = accounts.find(a => a.is_active);
+
+    if (!admin) return res.json(genericMessage);
+
+    const previous = otpStore.get(email);
+
+    if (previous && Date.now() - previous.lastSentAt < 60000) {
+      return res.json(genericMessage);
+    }
+
+    const otp = crypto.randomInt(100000, 1000000).toString();
+    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+
+    otpStore.set(email, {
+      adminId: admin.id,
+      otpHash,
+      expiresAt: Date.now() + 5 * 60 * 1000,
+      attempts: 0,
+      lastSentAt: Date.now()
+    });
+
+    try {
+      await mailTransporter.sendMail({
+        from: process.env.SMTP_USER,
+        to: admin.email,
+        subject: "Astrociuos Admin Password Reset OTP",
+        text: `Your password reset OTP is ${otp}. It expires in 5 minutes. Do not share this code.`
+      });
+    } catch (mailError) {
+      otpStore.delete(email);
+      throw mailError;
+    }
+
+    return res.json(genericMessage);
+
+  } catch (error) {
+    console.error("Forgot Password error:", error.message);
+    return res.status(500).json({
+      error: "Could not process password reset"
+    });
+  }
+});
+// Reset Admin Password: Verify OTP
+app.post("/api/admin/reset-password", async (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const otp = String(req.body.otp || "");
+    const newPassword = String(req.body.newPassword || "");
+
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      !/^\d{6}$/.test(otp) ||
+      newPassword.length < 8 ||
+      newPassword.length > 100
+    ) {
+      return res.status(400).json({
+        error: "Invalid email, OTP or password"
+      });
+    }
+
+    const record = otpStore.get(email);
+
+    if (!record || Date.now() > record.expiresAt) {
+      otpStore.delete(email);
+      return res.status(400).json({ error: "OTP expired or invalid" });
+    }
+
+    if (record.attempts >= 5) {
+      otpStore.delete(email);
+      return res.status(429).json({ error: "Too many attempts" });
+    }
+
+    const submittedHash = crypto.createHash("sha256").update(otp).digest("hex");
+
+    const valid = crypto.timingSafeEqual(
+      Buffer.from(record.otpHash, "hex"),
+      Buffer.from(submittedHash, "hex")
+    );
+
+    if (!valid) {
+      record.attempts++;
+
+      if (record.attempts >= 5) {
+        otpStore.delete(email);
+      }
+
+      return res.status(400).json({ error: "Invalid OTP" });
+    }
+
+    const password_hash = await bcrypt.hash(newPassword, 12);
+
+    const response = await supabaseRequest(
+      `admin_accounts?id=eq.${encodeURIComponent(record.adminId)}`,
+      {
+        method: "PATCH",
+        headers: { "Prefer": "return=minimal" },
+        body: JSON.stringify({ password_hash })
+      }
+    );
+
+    if (!response.ok) throw new Error(await response.text());
+
+    otpStore.delete(email);
+
+    return res.json({
+      success: true,
+      message: "Password reset successful. Please login again."
+    });
+
+  } catch (error) {
+    console.error("Reset Password error:", error.message);
+    return res.status(500).json({ error: "Password reset failed" });
+  }
 });
 // Super Admin: Create New Admin
 app.post("/api/admin/accounts", requireSuperAdmin, async (req, res) => {
