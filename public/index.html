@@ -48,6 +48,63 @@ select option{background:#151020}
 .approved{color:#4ade80}
 .rejected{color:#f87171}
 .hidden{display:none}
+/* Trusted Servers Moving Line */
+#trustedServersSection{
+  overflow:hidden;
+  background:#100b1c;
+}
+
+.trusted-marquee{
+  width:100%;
+  overflow:hidden;
+  border:1px solid #493568;
+  border-radius:14px;
+  padding:15px 0;
+  background:#151020;
+}
+
+.trusted-track{
+  display:flex;
+  align-items:center;
+  gap:35px;
+  width:max-content;
+  animation:trustedScroll 25s linear infinite;
+}
+
+.trusted-server-item{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  white-space:nowrap;
+  color:white;
+  padding:8px 15px;
+  border-right:1px solid #493568;
+}
+
+.trusted-server-item img{
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  object-fit:cover;
+}
+
+.trusted-server-item strong{
+  color:#bd9aff;
+}
+
+.trusted-server-item span{
+  color:#c8b6e8;
+  font-size:13px;
+}
+
+@keyframes trustedScroll{
+  from{transform:translateX(0)}
+  to{transform:translateX(-50%)}
+}
+
+.trusted-marquee:hover .trusted-track{
+  animation-play-state:paused;
+}
 </style>
 </head>
 <body>
