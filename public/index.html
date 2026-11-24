@@ -306,12 +306,57 @@ select option{background:#151020}
     <form id="loginForm">
       <input id="username" placeholder="Admin Username" required autocomplete="username">
       <input id="password" type="password" placeholder="Admin Password" required autocomplete="current-password">
+     <button class="btn" type="button" onclick="showForgotPassword()">
+  Forgot Password?
+</button>
       <button class="btn" type="submit">Login</button>
+   
     </form>
     <p class="message" id="loginMessage"></p>
     <button class="btn" onclick="showHome()">Back to Website</button>
   </div>
+<!-- Forgot Password Panel -->
+<div class="panel" id="forgotPasswordBox" style="display:none">
+  <h2>✦ Reset Admin Password</h2>
 
+  <form id="forgotPasswordForm">
+    <input
+      id="resetEmail"
+      type="email"
+      placeholder="Your Admin Gmail Address"
+      required
+    >
+
+    <button class="btn" type="submit">Send OTP</button>
+  </form>
+
+  <form id="resetPasswordForm" style="display:none">
+    <input
+      id="resetOtp"
+      inputmode="numeric"
+      maxlength="6"
+      placeholder="Enter 6 Digit OTP"
+      required
+    >
+
+    <input
+      id="newResetPassword"
+      type="password"
+      minlength="8"
+      maxlength="100"
+      placeholder="New Password (Minimum 8 Characters)"
+      required
+    >
+
+    <button class="btn" type="submit">Reset Password</button>
+  </form>
+
+  <p class="message" id="resetMessage"></p>
+
+  <button class="btn" type="button" onclick="backToAdminLogin()">
+    Back to Login
+  </button>
+</div>
   <div id="dashboard">
     <div class="panel">
       <h2>✦ Astrociuos Admin Panel</h2>
@@ -542,7 +587,79 @@ function openAdmin(){
   adminPage.style.display="block";
   checkLogin();
 }
+// Show Forgot Password Panel
+function showForgotPassword(){
+  loginBox.style.display = "none";
+  dashboard.style.display = "none";
+  document.getElementById("forgotPasswordBox").style.display = "block";
+}
 
+// Back to Admin Login
+function backToAdminLogin(){
+  document.getElementById("forgotPasswordBox").style.display = "none";
+  loginBox.style.display = "block";
+}
+
+// Send OTP to Gmail
+document.getElementById("forgotPasswordForm").addEventListener("submit", async function(e){
+  e.preventDefault();
+
+  const email = document.getElementById("resetEmail").value.trim();
+  const message = document.getElementById("resetMessage");
+
+  message.textContent = "Sending OTP...";
+
+  try{
+    const response = await fetch("/api/admin/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
+
+    const data = await response.json();
+
+    if(!response.ok) throw new Error(data.error || "Could not send OTP");
+
+    message.textContent = data.message;
+    document.getElementById("resetPasswordForm").style.display = "block";
+
+  }catch(error){
+    message.textContent = error.message;
+  }
+});
+
+// Verify OTP and Reset Password
+document.getElementById("resetPasswordForm").addEventListener("submit", async function(e){
+  e.preventDefault();
+
+  const email = document.getElementById("resetEmail").value.trim();
+  const otp = document.getElementById("resetOtp").value.trim();
+  const newPassword = document.getElementById("newResetPassword").value;
+  const message = document.getElementById("resetMessage");
+
+  message.textContent = "Resetting password...";
+
+  try{
+    const response = await fetch("/api/admin/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, otp, newPassword })
+    });
+
+    const data = await response.json();
+
+    if(!response.ok) throw new Error(data.error || "Password reset failed");
+
+    message.textContent = "Password changed successfully! Please login.";
+
+    document.getElementById("forgotPasswordForm").reset();
+    document.getElementById("resetPasswordForm").reset();
+    document.getElementById("resetPasswordForm").style.display = "none";
+
+  }catch(error){
+    message.textContent = error.message;
+  }
+});
 function showHome(){
   adminPage.style.display="none";
   mainPage.style.display="block";
