@@ -817,6 +817,35 @@ async function loadPaymentSettings(){
     status.textContent=error.message;
   }
 }
+ async function uploadBackgroundVideo(){
+  const input=document.getElementById("backgroundVideo");
+  const status=document.getElementById("backgroundVideoStatus");
+
+  if(!input.files.length){
+    status.textContent="Please select a video first";
+    return;
+  }
+
+  const formData=new FormData();
+  formData.append("video",input.files[0]);
+
+  status.textContent="Uploading video...";
+
+  try{
+    const response=await fetch("/api/admin/background-video",{
+      method:"POST",
+      body:formData
+    });
+
+    const data=await response.json();
+
+    if(!response.ok) throw new Error(data.error||"Upload failed");
+
+    status.textContent="Background video uploaded successfully!";
+  }catch(error){
+    status.textContent=error.message;
+  }
+}
 async function loadPublicPaymentMethods(){
   const select=document.getElementById("paymentMethod");
   const detailsBox=document.getElementById("paymentDetails");
