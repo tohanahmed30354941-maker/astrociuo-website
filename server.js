@@ -2,6 +2,7 @@
 const express = require("express");
 const session = require("express-session");
 const multer = require("multer");
+const bcrypt = require("bcryptjs");
 const app = express();
 const upload = multer({
   storage: multer.memoryStorage(),
