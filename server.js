@@ -450,7 +450,56 @@ app.delete("/api/admin/trusted-servers/:id", requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Could not delete server" });
   }
 });
-// Health Check
+
+// Get Current Background Video
+app.get("/api/background-video", (req, res) => {
+  const url = `${process.env.SUPABASE_URL}/storage/v1/object/public/site-background/background/current`;
+  res.json({ videoUrl: url });
+});
+
+// Admin Upload Background Video
+app.post(
+  "/api/admin/background-video",
+  requireAdmin,
+  (req, res, next) => {
+    upload.single("video")(req, res, (error) => {
+      if (error) {
+        return res.status(400).json({ error: error.message });
+      }
+      next();
+    });
+  },
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "Please select a video" });
+      }
+
+      const url = `${process.env.SUPABASE_URL}/storage/v1/object/site-background/background/current`;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          apikey: process.env.SUPABASE_SECRET_KEY,
+          Authorization: `Bearer ${process.env.SUPABASE_SECRET_KEY}`,
+          "Content-Type": req.file.mimetype,
+          "x-upsert": "true"
+        },
+        body: req.file.buffer
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      res.json({ success: true, message: "Background video uploaded" });
+    } catch (error) {
+      console.error("Background video error:", error.message);
+      res.status(500).json({ error: "Video upload failed" });
+    }
+  }
+);
+
 app.get("/api/health", (req, res) => {
   res.json({ status: "online" });
 });
