@@ -46,7 +46,19 @@ const requireAdmin = (req, res, next) => {
   }
   res.status(401).json({ error: "Please login first" });
 };
+const requireSuperAdmin = (req, res, next) => {
+  if (
+    req.session &&
+    req.session.isAdmin &&
+    req.session.isSuperAdmin === true
+  ) {
+    return next();
+  }
 
+  return res.status(403).json({
+    error: "Super Admin access required"
+  });
+};
 const supabaseRequest = async (path, options = {}) => {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
