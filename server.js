@@ -3,7 +3,25 @@ const express = require("express");
 const session = require("express-session");
 const multer = require("multer");
 const app = express();
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024
+  },
+  fileFilter: (req, file, cb) => {
+    const allowed = [
+      "video/mp4",
+      "video/webm",
+      "video/quicktime"
+    ];
 
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only MP4, WebM and MOV videos are allowed"));
+    }
+  }
+});
 app.set("trust proxy", 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
