@@ -1077,7 +1077,40 @@ item.appendChild(info);
     console.error("Trusted servers:",error);
   }
 }
+async function loadBackgroundVideo(){
+  const video=document.getElementById("siteBackgroundVideo");
 
+  try{
+    const response=await fetch("/api/background-video");
+    if(!response.ok) throw new Error("Video not found");
+
+    const data=await response.json();
+
+    if(data.videoUrl){
+      video.src=data.videoUrl+"?t="+Date.now();
+      video.load();
+      video.play().catch(()=>{});
+    }
+  }catch(error){
+    console.error("Background video:",error);
+  }
+}
+
+function toggleVideoSound(){
+  const video=document.getElementById("siteBackgroundVideo");
+  const button=document.getElementById("soundToggle");
+
+  video.muted=!video.muted;
+
+  if(!video.muted){
+    video.play().catch(()=>{});
+    button.textContent="🔊 Sound On";
+  }else{
+    button.textContent="🔇 Sound Off";
+  }
+}
+
+loadBackgroundVideo();
 loadTrustedServers();  
   loadTrustedServersAdmin();
 if(location.hash==="#admin")openAdmin();
