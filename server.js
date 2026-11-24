@@ -418,8 +418,8 @@ if (!guild) return null;
     name: guild.name,
     invite_url: server.invite_url,
     icon: guild.icon
-      ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
-      : null,
+  ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.${guild.icon.startsWith("a_") ? "gif" : "png"}`
+  : null,
     banner: guild.banner
   ? `https://cdn.discordapp.com/banners/${guild.id}/${guild.banner}.${guild.banner.startsWith("a_") ? "gif" : "png"}`
   : null,
