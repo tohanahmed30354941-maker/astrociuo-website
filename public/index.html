@@ -57,21 +57,7 @@ header .btn{
   margin:0;
   white-space:nowrap;
 }
-  gap:10px;
-  flex-wrap:nowrap;
-}
-
-header nav{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  flex-shrink:0;
-}
-
-header .btn{
-  margin:0;
-  white-space:nowrap;
-}
+  
 .logo{color:#a879ff;font-size:26px;font-weight:bold}
 a{color:white;text-decoration:none}
 .hero{text-align:center;padding:90px 20px 65px}
@@ -1110,7 +1096,6 @@ function toggleVideoSound(){
   }
 }
 
-loadBackgroundVideo();
 loadTrustedServers();  
   loadTrustedServersAdmin();
 if(location.hash==="#admin")openAdmin();
@@ -1124,5 +1109,8 @@ loadPlans();
 <button id="soundToggle" type="button" onclick="toggleVideoSound()">
   🔇 Sound Off
 </button>
+ <script>
+  loadBackgroundVideo();
+</script>
 </body>
 </html>
