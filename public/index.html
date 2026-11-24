@@ -697,6 +697,63 @@ document.getElementById("paymentMethod").addEventListener("change",function(){
 });
 
 loadPublicPaymentMethods();
+async function loadTrustedServers(){
+  const section=document.getElementById("trustedServersSection");
+  const track=document.getElementById("trustedServerTrack");
+
+  if(!section || !track) return;
+
+  try{
+    const response=await fetch("/api/trusted-servers");
+    if(!response.ok) throw new Error("Could not load trusted servers");
+
+    const servers=await response.json();
+
+    if(!servers.length){
+      section.style.display="none";
+      return;
+    }
+
+    section.style.display="block";
+    track.replaceChildren();
+
+    const items=[...servers,...servers];
+
+    items.forEach(server=>{
+      const item=document.createElement("a");
+      item.className="trusted-server-item";
+      item.href=server.invite_url;
+      item.target="_blank";
+      item.rel="noopener noreferrer";
+
+      if(server.icon){
+        const img=document.createElement("img");
+        img.src=server.icon;
+        img.alt="";
+        item.appendChild(img);
+      }
+
+      const name=document.createElement("strong");
+      name.textContent=server.name;
+      item.appendChild(name);
+
+      const count=document.createElement("span");
+      count.textContent="👥 "+(server.members ?? "N/A")+" Members";
+      item.appendChild(count);
+
+      const join=document.createElement("span");
+      join.textContent="Join Server →";
+      item.appendChild(join);
+
+      track.appendChild(item);
+    });
+
+  }catch(error){
+    console.error("Trusted servers:",error);
+  }
+}
+
+loadTrustedServers();  
 if(location.hash==="#admin")openAdmin();
 
 loadPlans();
