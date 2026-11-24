@@ -972,19 +972,26 @@ if(server.banner){
         item.appendChild(img);
       }
 
-      const name=document.createElement("strong");
-      name.textContent=server.name;
-      item.appendChild(name);
+      const info=document.createElement("div");
+info.className="trusted-server-info";
 
-      const count=document.createElement("span");
-      count.textContent="👥 "+(server.members ?? "N/A")+" Members";
-      item.appendChild(count);
+const name=document.createElement("strong");
+name.textContent=server.name;
+info.appendChild(name);
+
+const count=document.createElement("span");
+count.textContent="👥 "+(server.members ?? "N/A")+" Members";
+info.appendChild(count);
+
 const online=document.createElement("span");
 online.textContent="🟢 "+(server.online ?? "N/A")+" Online";
-item.appendChild(online);
-      const join=document.createElement("span");
-      join.textContent="Join Server →";
-      item.appendChild(join);
+info.appendChild(online);
+
+const join=document.createElement("span");
+join.textContent="Join Server →";
+info.appendChild(join);
+
+item.appendChild(info);
 
       track.appendChild(item);
     });
